@@ -10,6 +10,8 @@ from readability import Document
 # Initialize the OpenAI client with your API key
 client = OpenAI(api_key=config.openai_api_key)
 
+
+#TODO: Добавить функцию для скрейпинга страницы и сохранения в файл
 def scrape_website(url):
     # Add headers to mimic a browser request
     headers = {
