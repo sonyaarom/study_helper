@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Studienkolleg Database</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .filter-section {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .university-card {
+            margin-bottom: 20px;
+            transition: transform 0.3s;
+        }
+        .university-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .badge {
+            margin-right: 5px;
+        }
+        .favorite-btn {
+            color: #ccc;
+            cursor: pointer;
+            font-size: 1.5rem;
+            position: absolute;
+            right: 15px;
+            top: 15px;
+        }
+        .favorite-btn.active {
+            color: gold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Studienkolleg Database</h1>
+            <a href="/favorites" class="btn btn-outline-warning">View Favorites</a>
+        </div>
+        
+        <div class="filter-section">
+            <h4>Filters</h4>
+            <div class="row">
+                <div class="col-md-3">
+                    <label for="typeFilter" class="form-label">Institution Type</label>
+                    <select id="typeFilter" class="form-select">
+                        <option value="">All</option>
+                        <option value="hochschule">Hochschule</option>
+                        <option value="uni">University</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="onlineFilter" class="form-label">Entrance Test</label>
+                    <select id="onlineFilter" class="form-select">
+                        <option value="">All</option>
+                        <option value="true">Online</option>
+                        <option value="false">In-person</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="publicFilter" class="form-label">Institution Type</label>
+                    <select id="publicFilter" class="form-select">
+                        <option value="">All</option>
+                        <option value="true">Public</option>
+                        <option value="false">Private</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button id="applyFilters" class="btn btn-primary w-100">Apply Filters</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="universitiesList" class="row">
+            <!-- Universities will be loaded here -->
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- University Card Template -->
+    <template id="universityCardTemplate">
+        <div class="col-md-6 col-lg-4">
+            <div class="card university-card">
+                <div class="card-body">
+                    <h5 class="card-title uni-name">University Name</h5>
+                    <h6 class="card-subtitle mb-2 text-muted uni-id">ID</h6>
+                    <i class="bi bi-star-fill favorite-btn"></i>
+                    
+                    <div class="mb-2">
+                        <span class="badge bg-info type-badge">Type</span>
+                        <span class="badge bg-success public-badge">Public/Private</span>
+                        <span class="badge bg-warning test-badge">Test Type</span>
+                    </div>
+                    
+                    <p class="card-text"><strong>Application Dates:</strong> <span class="app-dates">Dates</span></p>
+                    <p class="card-text"><strong>Entrance Test:</strong> <span class="test-date">Date</span></p>
+                    <p class="card-text"><strong>Subjects:</strong> <span class="subjects">Subjects</span></p>
+                    <p class="card-text"><strong>Language Level:</strong> <span class="language">Level</span></p>
+                    
+                    <div class="mt-3">
+                        <a href="#" class="card-link uni-url" target="_blank">Visit Website</a>
+                        <button class="btn btn-sm btn-outline-secondary float-end view-notes">View Notes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Modal for Notes -->
+    <div class="modal fade" id="notesModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Notes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="notesContent"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Initialize Bootstrap components
+        const notesModal = new bootstrap.Modal(document.getElementById('notesModal'));
+        
+        // Load universities with filters
+        function loadUniversities() {
+            const typeFilter = document.getElementById('typeFilter').value;
+            const onlineFilter = document.getElementById('onlineFilter').value;
+            const publicFilter = document.getElementById('publicFilter').value;
+            
+            let url = '/api/universities?';
+            if (typeFilter) url += `type=${typeFilter}&`;
+            if (onlineFilter) url += `online=${onlineFilter}&`;
+            if (publicFilter) url += `public=${publicFilter}&`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    displayUniversities(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching universities:', error);
+                    document.getElementById('universitiesList').innerHTML = 
+                        '<div class="col-12"><div class="alert alert-danger">Error loading data. Please try again.</div></div>';
+                });
+        }
+        
+        // Display universities in cards
+        function displayUniversities(universities) {
+            const container = document.getElementById('universitiesList');
+            container.innerHTML = '';
+            
+            if (universities.length === 0) {
+                container.innerHTML = '<div class="col-12"><div class="alert alert-info">No universities found matching your filters.</div></div>';
+                return;
+            }
+            
+            const template = document.getElementById('universityCardTemplate');
+            
+            universities.forEach(uni => {
+                const card = template.content.cloneNode(true);
+                
+                // Fill in the data
+                card.querySelector('.uni-name').textContent = uni.stk_name;
+                card.querySelector('.uni-id').textContent = uni.university_id;
+                
+                // Set badges
+                const typeBadge = card.querySelector('.type-badge');
+                typeBadge.textContent = uni.hochschule_or_uni === 'hochschule' ? 'Hochschule' : 'University';
+                
+                const publicBadge = card.querySelector('.public-badge');
+                publicBadge.textContent = uni.public ? 'Public' : 'Private';
+                publicBadge.classList.remove('bg-success');
+                publicBadge.classList.add(uni.public ? 'bg-success' : 'bg-secondary');
+                
+                const testBadge = card.querySelector('.test-badge');
+                testBadge.textContent = uni.entrance_test_online ? 'Online Test' : 'In-person Test';
+                testBadge.classList.remove('bg-warning');
+                testBadge.classList.add(uni.entrance_test_online ? 'bg-warning' : 'bg-info');
+                
+                // Set other fields
+                card.querySelector('.app-dates').textContent = uni.application_dates || 'Not specified';
+                card.querySelector('.test-date').textContent = uni.entrance_test_date || 'Not specified';
+                card.querySelector('.subjects').textContent = uni.entrance_test_subjects || 'Not specified';
+                card.querySelector('.language').textContent = uni.required_language_level || 'Not specified';
+                
+                // Set URL
+                const urlLink = card.querySelector('.uni-url');
+                if (uni.url) {
+                    urlLink.href = uni.url;
+                } else {
+                    urlLink.style.display = 'none';
+                }
+                
+                // Set up notes button
+                const notesBtn = card.querySelector('.view-notes');
+                if (uni.notes) {
+                    notesBtn.addEventListener('click', () => {
+                        document.getElementById('notesContent').textContent = uni.notes;
+                        notesModal.show();
+                    });
+                } else {
+                    notesBtn.style.display = 'none';
+                }
+                
+                // Set up favorite button
+                const favoriteBtn = card.querySelector('.favorite-btn');
+                const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+                if (favorites.includes(uni.university_id)) {
+                    favoriteBtn.classList.add('active');
+                }
+                
+                favoriteBtn.addEventListener('click', () => {
+                    toggleFavorite(uni.university_id, favoriteBtn);
+                });
+                
+                container.appendChild(card);
+            });
+        }
+        
+        // Toggle favorite status
+        function toggleFavorite(universityId, button) {
+            let favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+            
+            if (favorites.includes(universityId)) {
+                // Remove from favorites
+                favorites = favorites.filter(id => id !== universityId);
+                button.classList.remove('active');
+            } else {
+                // Add to favorites
+                favorites.push(universityId);
+                button.classList.add('active');
+            }
+            
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+        }
+        
+        // Event listeners
+        document.getElementById('applyFilters').addEventListener('click', loadUniversities);
+        
+        // Initial load
+        document.addEventListener('DOMContentLoaded', loadUniversities);
+    </script>
+</body>
+</html> 
